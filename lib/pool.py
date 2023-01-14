@@ -16,10 +16,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+from pylogix import PLC
+
+from lib.plc_conn import PlcConn
 
 
-# TODO implement my own error
-class PoolError(psycopg2.Error):
+class PoolError(Exception):
     pass
 
 
@@ -42,7 +44,7 @@ class AbstractConnectionPool:
 
         self._pool = []
         self._used = {}
-        self._rused = {}    # id(conn) -> key map
+        self._rused = {}  # id(conn) -> key map
         self._keys = 0
 
         for i in range(self.minconn):
@@ -50,7 +52,10 @@ class AbstractConnectionPool:
 
     def _connect(self, key=None):
         """Create a new connection and assign it to 'key' if not None."""
-        conn = psycopg2.connect(*self._args, **self._kwargs)
+        # conn = psycopg2.connect(*self._args, **self._kwargs)
+        # TODO add custom PLC class here
+        # conn = PLC(*self._args, **self._kwargs)
+        conn = PlcConn(*self._args, **self._kwargs)
         if key is not None:
             self._used[key] = conn
             self._rused[id(conn)] = key
@@ -95,12 +100,13 @@ class AbstractConnectionPool:
         if len(self._pool) < self.minconn and not close:
             # Return the connection into a consistent state before putting
             # it back into the pool
+            # TODO fix this with custom PLC class
             if not conn.closed:
                 status = conn.info.transaction_status
-                if status == _ext.TRANSACTION_STATUS_UNKNOWN:
+                if status == 2:
                     # server connection lost
                     conn.close()
-                elif status != _ext.TRANSACTION_STATUS_IDLE:
+                elif status != 3:
                     # connection in error or in transaction
                     conn.rollback()
                     self._pool.append(conn)
@@ -128,7 +134,8 @@ class AbstractConnectionPool:
             raise PoolError("connection pool is closed")
         for conn in self._pool + list(self._used.values()):
             try:
-                conn.close()
+                # conn.close()
+                conn.Close()
             except Exception:
                 pass
         self.closed = True
