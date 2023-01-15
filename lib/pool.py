@@ -52,8 +52,6 @@ class AbstractConnectionPool:
 
     def _connect(self, key=None):
         """Create a new connection and assign it to 'key' if not None."""
-        # conn = psycopg2.connect(*self._args, **self._kwargs)
-        # TODO add custom PLC class here
         # conn = PLC(*self._args, **self._kwargs)
         conn = PlcConn(*self._args, **self._kwargs)
         if key is not None:
@@ -81,13 +79,16 @@ class AbstractConnectionPool:
         if self._pool:
             self._used[key] = conn = self._pool.pop()
             self._rused[id(conn)] = key
+            print(f"conn key {key}, pool len {len(self._pool)}")
+            print(self._used)
+            conn.keepalive()
             return conn
         else:
             if len(self._used) == self.maxconn:
                 raise PoolError("connection pool exhausted")
             return self._connect(key)
 
-    def _putconn(self, conn, key=None, close=False):
+    def _putconn(self, conn: PlcConn, key=None, close=False):
         """Put away a connection."""
         if self.closed:
             raise PoolError("connection pool is closed")
@@ -101,21 +102,24 @@ class AbstractConnectionPool:
             # Return the connection into a consistent state before putting
             # it back into the pool
             # TODO fix this with custom PLC class
-            if not conn.closed:
-                status = conn.info.transaction_status
-                if status == 2:
-                    # server connection lost
-                    conn.close()
-                elif status != 3:
-                    # connection in error or in transaction
-                    conn.rollback()
-                    self._pool.append(conn)
-                else:
+            # if conn.status() != "Successful":
+            # if not conn.closed:
+            # if not conn.conn.SocketConnected:
+            #     status = conn.info.transaction_status
+            #     if status == 2:
+            #         # server connection lost
+            #         conn.close()
+            #     elif status != 3:
+            #         # connection in error or in transaction
+            #         conn.rollback()
+            #         self._pool.append(conn)
+            #     else:
                     # regular idle connection
-                    self._pool.append(conn)
+            print(f"Put conn away {id(conn)}")
+            self._pool.append(conn)
             # If the connection is closed, we just discard it.
         else:
-            conn.close()
+            conn.Close()
 
         # here we check for the presence of key because it can happen that a
         # thread tries to put back a connection after a call to close
