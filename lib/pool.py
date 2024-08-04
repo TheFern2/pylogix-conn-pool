@@ -79,8 +79,6 @@ class AbstractConnectionPool:
         if self._pool:
             self._used[key] = conn = self._pool.pop()
             self._rused[id(conn)] = key
-            print(f"conn key {key}, pool len {len(self._pool)}")
-            print(self._used)
             conn.keepalive()
             return conn
         else:
@@ -119,6 +117,7 @@ class AbstractConnectionPool:
             self._pool.append(conn)
             # If the connection is closed, we just discard it.
         else:
+            print(f"Closing connection {id(conn)}")
             conn.Close()
 
         # here we check for the presence of key because it can happen that a
